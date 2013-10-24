@@ -1,0 +1,79 @@
+<html>
+    <head>
+         <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.1/jquery.min.js"></script>
+        {% load socketio_tags %}
+        {% socketio %}
+        <script>
+        $(function() {
+            var socket;
+
+            $('form').submit(function() {              
+                var value = $('#message').val();
+                if (value) {
+                    data = {action: 'message', text: value};
+                    socket.send(data);
+                }
+                $('#message').val('').focus();
+                return false;
+            });  
+
+            var connected = function() {
+                socket.subscribe('room-1');
+            };
+            
+            var messaged = function(msg) {
+                switch (msg.action) {
+                    case 'message':
+                        var d = new Date();
+                        var win = $(window), doc = $(window.document);
+                        var bottom = win.scrollTop() + win.height() == doc.height();
+                        msg.time = $.map([d.getHours(), d.getMinutes(), d.getSeconds()],
+                                          function(s) {
+                                              s = String(s);
+                                              return (s.length == 1 ? '0' : '') + s;
+                                          }).join(':');
+                         $('#messages').append(
+                            $('<li>').append(
+                                msg.time + " - " + msg.text
+                            ));
+                        
+                        if (bottom) {
+                            window.scrollBy(0, 10000);
+                        }
+                        break;
+                    case 'system-info':
+                        if( $('#system-info').html()==="En attente de la connexion."){
+                            $('#system-info').html(msg.text);
+                        }else{
+                            $('#system-info').append(msg.text);
+                        }
+                        break;
+                }    
+            };            
+
+            var start = function() {
+                  
+                socket = new io.Socket();
+
+                socket.connect('http://localhost:9000');                
+                socket.on('connect', connected);
+                socket.on('message', messaged);
+                socket.on('private_message', messaged);
+            };
+            start();
+        });
+        </script>
+    </head>
+    <body>
+        <span id="system-info">En attente de la connexion.</span>
+        <form>
+            <input type="text" id="message" name="message" value="">
+            <input type="submit" id="submit" value="Send">
+            {% csrf_token %}
+        </form>  
+        <ul id="messages">
+            
+        </ul>        
+        </span>        
+    </body>
+</html>
